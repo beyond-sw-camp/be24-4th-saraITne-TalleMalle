@@ -29,7 +29,6 @@ const showSidebar = computed(() => !route.meta.hideNavbar && !isDriverMode.value
 </template>
 
 <style>
-/* 왼쪽 슬라이드 애니메이션 */
 .slide-left-enter-active,
 .slide-left-leave-active {
   transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
