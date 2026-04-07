@@ -14,7 +14,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: gradle
-      image: eclipse-temurin:17-jdk
+      image: eclipse-temurin:17-jdk-bullseye
       command: ['cat']
       tty: true
     - name: kaniko
@@ -37,7 +37,7 @@ spec:
       emptyDir: {}
     - name: docker-config
       secret:
-        secretName: dockerhub-cred1
+        secretName: dockerhub-cred
         items:
           - key: .dockerconfigjson
             path: config.json
@@ -65,17 +65,218 @@ spec:
     stage('Setup K8s Resources') {
       steps {
         container('kubectl') {
-          sh """
-            kubectl apply -f ${WORKSPACE}/k8s/01-db-statefulset.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/02-db-service.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/03-backend-configmap.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/04-backend-deployment.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/04-backend-green-deployment.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/05-backend-service.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/08-tls-secret.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/10-backend-ingress.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/11-websocket-ingress.yaml -n ${NAMESPACE}
-          """
+          sh '''
+            # Deployment, DB, Ingress는 항상 apply (slot selector에 영향 없음)
+            kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db-statefulset
+  namespace: jdh
+spec:
+  replicas: 1
+  serviceName: db-service
+  selector:
+    matchLabels:
+      type: db
+  template:
+    metadata:
+      labels:
+        type: db
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: mariadb
+          image: mariadb:latest
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              value: qwer1234
+            - name: MARIADB_ROOT_HOST
+              value: "%"
+            - name: MARIADB_DATABASE
+              value: tallemalle
+          volumeMounts:
+            - name: volume
+              mountPath: /var/lib/mysql
+      terminationGracePeriodSeconds: 10
+  volumeClaimTemplates:
+    - metadata:
+        name: volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1G
+        storageClassName: longhorn
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-service
+  namespace: jdh
+spec:
+  selector:
+    type: db
+  clusterIP: None
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-blue-deployment
+  namespace: jdh
+  labels:
+    type: backend
+    slot: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: backend
+      slot: blue
+  template:
+    metadata:
+      labels:
+        type: backend
+        slot: blue
+    spec:
+      containers:
+        - name: backend
+          image: deatytim/tmbackend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-green-deployment
+  namespace: jdh
+  labels:
+    type: backend
+    slot: green
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: backend
+      slot: green
+  template:
+    metadata:
+      labels:
+        type: backend
+        slot: green
+    spec:
+      containers:
+        - name: backend
+          image: deatytim/tmbackend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-ingress
+  namespace: jdh
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - www.tallemalletest.kro.kr
+      secretName: jdh-tls
+  rules:
+    - host: www.tallemalletest.kro.kr
+      http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: websocket-ingress
+  namespace: jdh
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - www.tallemalletest.kro.kr
+      secretName: jdh-tls
+  rules:
+    - host: www.tallemalletest.kro.kr
+      http:
+        paths:
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 8080
+EOF
+
+            # Service는 이미 존재하면 slot selector를 유지하고, 없을 때만 생성
+            if kubectl get svc backend-service -n jdh > /dev/null 2>&1; then
+              echo "backend-service 이미 존재 — slot selector 유지"
+            else
+              echo "backend-service 없음 — slot: blue 로 초기 생성"
+              kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: jdh
+spec:
+  selector:
+    type: backend
+    slot: blue
+  ports:
+    - port: 8080
+      targetPort: 8080
+EOF
+            fi
+          '''
         }
       }
     }
