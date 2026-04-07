@@ -62,6 +62,20 @@ spec:
       }
     }
 
+    stage('Setup K8s Resources') {
+      steps {
+        container('kubectl') {
+          sh """
+            kubectl apply -f ${WORKSPACE}/k8s/06-frontend-deployment.yaml -n ${NAMESPACE}
+            kubectl apply -f ${WORKSPACE}/k8s/06-frontend-green-deployment.yaml -n ${NAMESPACE}
+            kubectl apply -f ${WORKSPACE}/k8s/07-frontend-service.yaml -n ${NAMESPACE}
+            kubectl apply -f ${WORKSPACE}/k8s/08-tls-secret.yaml -n ${NAMESPACE}
+            kubectl apply -f ${WORKSPACE}/k8s/09-frontend-ingress.yaml -n ${NAMESPACE}
+          """
+        }
+      }
+    }
+
     stage('npm Install & Build') {
       steps {
         container('node') {
