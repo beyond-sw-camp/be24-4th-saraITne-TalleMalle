@@ -45,6 +45,7 @@ spec:
     }
   }
 
+
   environment {
     IMAGE_NAME     = 'deatytim/tmbackend'
     IMAGE_TAG      = "${env.BUILD_NUMBER}"
