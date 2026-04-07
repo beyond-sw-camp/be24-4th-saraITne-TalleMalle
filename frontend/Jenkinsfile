@@ -64,6 +64,24 @@ spec:
 
 
 
+    stage('Check Changes') {
+      steps {
+        container('node') {
+          script {
+            def changedFiles = sh(
+              script: 'git diff --name-only HEAD~1 HEAD',
+              returnStdout: true
+            ).trim()
+            echo "변경된 파일:\n${changedFiles}"
+            if (!changedFiles.split('\n').any { it.startsWith('frontend/') }) {
+              currentBuild.result = 'ABORTED'
+              error('frontend/ 변경 없음 — 빌드 스킵')
+            }
+          }
+        }
+      }
+    }
+
     stage('Setup K8s Resources') {
       steps {
         container('kubectl') {

@@ -67,6 +67,24 @@ spec:
       }
     }
 
+    stage('Check Changes') {
+      steps {
+        container('gradle') {
+          script {
+            def changedFiles = sh(
+              script: 'git diff --name-only HEAD~1 HEAD',
+              returnStdout: true
+            ).trim()
+            echo "변경된 파일:\n${changedFiles}"
+            if (!changedFiles.split('\n').any { it.startsWith('backend/') }) {
+              currentBuild.result = 'ABORTED'
+              error('backend/ 변경 없음 — 빌드 스킵')
+            }
+          }
+        }
+      }
+    }
+
     stage('Setup K8s Resources') {
       steps {
         container('kubectl') {
