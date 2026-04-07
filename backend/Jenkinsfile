@@ -14,7 +14,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: gradle
-      image: eclipse-temurin:17-jdk-bullseye
+      image: eclipse-temurin:17-jdk
       command: ['cat']
       tty: true
     - name: kaniko
