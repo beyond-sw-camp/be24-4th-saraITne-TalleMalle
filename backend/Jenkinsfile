@@ -69,17 +69,16 @@ spec:
 
     stage('Check Changes') {
       steps {
-        container('gradle') {
-          script {
-            def changedFiles = sh(
-              script: 'git diff --name-only HEAD~1 HEAD',
-              returnStdout: true
-            ).trim()
-            echo "변경된 파일:\n${changedFiles}"
-            if (!changedFiles.split('\n').any { it.startsWith('backend/') }) {
-              currentBuild.result = 'ABORTED'
-              error('backend/ 변경 없음 — 빌드 스킵')
+        script {
+          def changedFiles = currentBuild.changeSets.collectMany { cs ->
+            cs.items.collectMany { item ->
+              item.affectedFiles.collect { it.path }
             }
+          }
+          echo "변경된 파일:\n${changedFiles.join('\n')}"
+          if (!changedFiles.any { it.startsWith('backend/') }) {
+            currentBuild.result = 'ABORTED'
+            error('backend/ 변경 없음 — 빌드 스킵')
           }
         }
       }
