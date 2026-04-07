@@ -66,13 +66,111 @@ spec:
     stage('Setup K8s Resources') {
       steps {
         container('kubectl') {
-          sh """
-            kubectl apply -f ${WORKSPACE}/k8s/06-frontend-deployment.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/06-frontend-green-deployment.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/07-frontend-service.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/08-tls-secret.yaml -n ${NAMESPACE}
-            kubectl apply -f ${WORKSPACE}/k8s/09-frontend-ingress.yaml -n ${NAMESPACE}
-          """
+          sh '''
+            # Deployment와 Ingress는 항상 apply (이미지/스펙 동기화, slot selector에 영향 없음)
+            kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-blue-deployment
+  namespace: jdh
+  labels:
+    type: frontend
+    slot: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: frontend
+      slot: blue
+  template:
+    metadata:
+      labels:
+        type: frontend
+        slot: blue
+    spec:
+      containers:
+        - name: frontend
+          image: deatytim/tmfront:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-green-deployment
+  namespace: jdh
+  labels:
+    type: frontend
+    slot: green
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: frontend
+      slot: green
+  template:
+    metadata:
+      labels:
+        type: frontend
+        slot: green
+    spec:
+      containers:
+        - name: frontend
+          image: deatytim/tmfront:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-ingress
+  namespace: jdh
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - www.tallemalletest.kro.kr
+      secretName: tallemalle-tls
+  rules:
+    - host: www.tallemalletest.kro.kr
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80
+EOF
+
+            # Service는 이미 존재하면 slot selector를 유지하고, 없을 때만 생성
+            if kubectl get svc frontend-service -n jdh > /dev/null 2>&1; then
+              echo "frontend-service 이미 존재 — slot selector 유지"
+            else
+              echo "frontend-service 없음 — slot: blue 로 초기 생성"
+              kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: jdh
+spec:
+  selector:
+    type: frontend
+    slot: blue
+  ports:
+    - port: 80
+      targetPort: 80
+EOF
+            fi
+          '''
         }
       }
     }
