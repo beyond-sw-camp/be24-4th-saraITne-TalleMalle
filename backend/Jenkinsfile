@@ -16,7 +16,7 @@ spec:
       - name: dockerhub-cred1
   containers:
     - name: gradle
-      image: eclipse-temurin:17-jdk
+      image: gradle:8.6-jdk17
       command: ['cat']
       tty: true
     - name: kaniko
@@ -308,8 +308,7 @@ EOF
         container('gradle') {
           dir('backend') {
             sh '''
-              chmod +x ./gradlew
-              ./gradlew clean bootJar --no-daemon
+              gradle clean bootJar --no-daemon
             '''
           }
         }
