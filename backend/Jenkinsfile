@@ -89,7 +89,7 @@ spec:
         container('kubectl') {
           sh '''
             # Deployment, DB, Ingress는 항상 apply (slot selector에 영향 없음)
-            kubectl apply -f - <<EOF
+            kubectl apply -f - <<'EOF'
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
