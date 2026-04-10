@@ -105,38 +105,6 @@
 * 🚀 [**성능 개선 (Performance Improvement)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/5.-%EC%84%B1%EB%8A%A5-%EA%B0%9C%EC%84%A0-(Performance-Improvement)-%F0%9F%9A%80)
 * 🧪 [**프론트엔드 기능 테스트 (Frontend Feature Test)**](https://github.com/beyond-sw-camp/be24-2nd-saraITne-TalleMalle?tab=readme-ov-file#-%EA%B8%B0%EB%8A%A5-%ED%85%8C%EC%8A%A4%ED%8A%B8)
 
-<br></br>
-
-**🖼️ 시스템 아키텍처 (System Architecture)**
-<img src="https://github.com/user-attachments/assets/c84e5df9-2e4f-4f19-ad46-8db0f9a61b08" width="800"/>
-
-<details>
-<summary><b>아키텍처 설명</b></summary>
-
-### 시스템 아키텍처
-- **전체 흐름**: 개발자가 GitHub에 코드를 푸시하면 Webhook으로 Jenkins가 실행되고, 프론트·백엔드를 빌드해 Docker 이미지로 만든 뒤 Docker Hub에 푸시합니다. Kubernetes가 이미지를 Pull해 클러스터에 배포합니다
-- **CI/CD 구성**: GitHub(Webhook) → Jenkins → **프론트(Vue.js) `npm build`**, **백엔드(Spring Boot) `gradle build`** → Docker 이미지 빌드 → **Docker Hub** 업로드 → **Kubernetes** 배포
-
-### Kubernetes 배포·네트워크
-- **Ingress**: 외부 트래픽을 경로별로 분기합니다 (`/` 프론트, `/api` 백엔드 API, `/ws` WebSocket)
-- **배포 전략**: 프론트엔드(Nginx), 백엔드(Spring Boot) 모두 **Blue-Green** 기반 무중단 배포
-- **서비스**: Pod 간 통신은 **ClusterIP** 서비스로 연결합니다
-
-### 데이터·스토리지
-- **DB**: **MariaDB**, **Master–Slave 복제** 구조
-- **객체 스토리지**: Presigned URL 방식으로 **Amazon S3**에 정적 파일·미디어 저장·연동
-
-### 모니터링
-- **Prometheus**: 메트릭 수집  
-- **Grafana**: 대시보드 시각화   
-
-</details>
-</br>
-
-**🖼️ ERD (Entity Relationship Diagram)**
-
-<img src="https://github.com/user-attachments/assets/e165850c-09ce-4e15-9e6a-f05455d937f9" width="800"/>
-
 ---
 
 <div align="center">
