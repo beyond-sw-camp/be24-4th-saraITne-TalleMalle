@@ -1,122 +1,145 @@
-# 🚀 TalleMalle Docker Deployment Guide
+<div align="center">
 
-이 문서는 TalleMalle 프로젝트를 리눅스 서버에서 Docker Compose를 사용해 쉽고 안전하게 배포하기 위한 안내서입니다.
+<img width="280" alt="TalleMalle Logo" src="https://github.com/user-attachments/assets/3ae14639-49a6-415c-8407-bf0cb62fd85c" />
 
----
+# 🚕 TalleMalle DevOps
 
-## 📂 프로젝트 구조
-```text
-TalleMalle/
-├── backend/            # Spring Boot / API 서버
-├── frontend/           # React (Vite) / 클라이언트
-└── docker/             # Docker 설정 파일 및 실행 디렉토리
-    └── docker-compose.yml
-```
+</div>
 
----
+<br>
 
-## 🛠️ 사전 준비 (Prerequisites)
-1. **Docker & Docker Compose** 설치 완료
-2. **Git** 설치 완료
+> ### 🔗 Project Links
+> 🌐 **Web Service** : [TalleMalle 공식 서비스 접속하기](https://www.tallemalle.kro.kr)  
+> 🌐 **Web Driver Service** : [TalleMalle 공식 드라이버 서비스 접속하기](https://driver.tallemalle.kro.kr)   
+> 📘 **API Docs** : [Swagger API 명세서](https://api.tallemalle.kro.kr/swagger-ui/index.html)  
+> 📏 **Convention** : [팀 코딩 컨벤션 및 규칙 (Notion)](https://www.notion.so/2dfa4b6b459480e693d3f1e81cf9134a?source=copy_link)<br>
+> 📋 **요구사항 정의서** : [Google Sheets](https://docs.google.com/spreadsheets/d/1_wSnuyYpkMXw1geaeSqGHfUOZfL644nFQrEA4qVqgvc/edit?usp=sharing)
 
----
+<br>
 
-## ⚙️ 환경 설정 (.env 세팅)
+## 👥 Team TalleMalle
 
-프로젝트 실행을 위해 `backend`, `frontend`, `docker` 폴더 각각에 `.env` 파일을 생성해야 합니다.
-
-### 1️⃣ 백엔드 설정 (`backend/.env`)
-`backend` 폴더 내에 `.env` 파일을 생성하고 아래 내용을 입력하세요.
-```bash
-# Database (데이터베이스)
-DB_URL=jdbc:mariadb://db:3306/tallemalle (DB 접속 URL)
-DB_USER=root (DB 사용자명)
-DB_PASS=your_secure_password (DB 비밀번호)
-
-# Security (보안)
-JWT_SECRET=your_jwt_secret_key (JWT 서명용 비밀키)
-JWT_EXPIRE=86400 (JWT 만료 시간)
-AES_KEY=your_aes_encryption_key (AES 암호화 키)
-
-# App Settings (앱 주소 및 경로)
-UPLOAD_PATH=./uploads (파일 업로드 경로)
-COOKIE_DOMAIN=localhost (쿠키 도메인)
-FRONT_URL=http://localhost (프론트엔드 접속 주소)
-API_URL=http://localhost:8080 (백엔드 API 접속 주소)
-SSL_KEY_PASS=your_ssl_password (SSL 키스토어 비밀번호)
-
-# OAuth2 (소셜 로그인)
-GOOGLE_CLIENT_ID=your_google_id (구글 클라이언트 ID)
-GOOGLE_CLIENT_SECRET=your_google_secret (구글 클라이언트 시크릿)
-GOOGLE_REDIRECT_URI=http://localhost:8080/login/oauth2/code/google (구글 리다이렉트 URI)
-KAKAO_CLIENT_ID=your_kakao_id (카카오 클라이언트 ID)
-KAKAO_CLIENT_SECRET=your_kakao_secret (카카오 클라이언트 시크릿)
-KAKAO_REDIRECT_URI=http://localhost:8080/login/oauth2/code/kakao (카카오 리다이렉트 URI)
-
-# External Services (외부 서비스)
-MAIL_ADDR=your_email@gmail.com (관리자 메일 주소)
-MAIL_PASS=your_email_password (메일 앱 비밀번호)
-AWS_ACCESS_KEY=your_aws_access (AWS 액세스 키)
-AWS_SECRET_KEY=your_aws_secret (AWS 시크릿 키)
-TOSS_SECRET_KEY=your_toss_key (토스페이먼츠 시크릿 키)
-KAKAO_API_KEY=your_kakao_api_key (카카오 REST API 키)
-PORTONE_SECRET_API=your_portone_api (포트원 시크릿 API 키)
-
-# Push Notification (푸시 알림)
-VAPID_PUBLIC_KEY=your_vapid_public (VAPID 공개키)
-VAPID_PRIVATE_KEY=your_vapid_private (VAPID 개인키)
-```
-
-### 2️⃣ 프론트엔드 설정 (`frontend/.env`)
-`frontend` 폴더 내에 `.env` 파일을 생성하세요. (빌드 시 정적 파일에 포함됩니다.)
-```bash
-VITE_API_BASE_URL=http://<SERVER_IP>:8080 (백엔드 API 서버 주소)
-VITE_WS_URL=ws://<SERVER_IP>:8080/ws (웹소켓 접속 주소)
-VITE_KAKAO_MAP_KEY=your_kakao_map_key (카카오맵 자바스크립트 키)
-VITE_PORTONE_STORE_ID=your_store_id (포트원 가맹점 식별코드)
-VITE_PORTONE_CHANNEL_KEY=your_channel_key (포트원 채널 키)
-VITE_VAPID_PUBLIC_KEY=your_vapid_public_key (VAPID 공개키)
-```
-
-### 3️⃣ Docker 실행 설정 (`docker/.env`)
-`docker` 폴더 내에 `.env` 파일을 생성하세요. (컨테이너 오케스트레이션 및 빌드 인자)
-```bash
-# DB 초기 설정
-DB_ROOT_PASSWORD=your_secure_password (DB 루트 비밀번호)
-DB_NAME=tallemalle (생성할 DB 이름)
-
-# Frontend 빌드 인자 (위 frontend/.env 설정과 동일하게 작성)
-VITE_API_BASE_URL=http://<SERVER_IP>:8080 (백엔드 API 서버 주소)
-VITE_WS_URL=ws://<SERVER_IP>:8080/ws (웹소켓 접속 주소)
-```
+<table align="center" width="100%">
+  <tr>
+    <td align="center" width="20%">
+      <a href="https://github.com/shinukang">
+        <img src="https://github.com/shinukang.png" width="90" style="border-radius: 50%;"><br/>
+        <strong>강신우</strong>
+      </a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/saralove20">
+        <img src="https://github.com/saralove20.png" width="90" style="border-radius: 50%;"><br/>
+        <strong>김사라</strong>
+      </a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/pbgodsoo">
+        <img src="https://github.com/pbgodsoo.png" width="90" style="border-radius: 50%;"><br/>
+        <strong>박범수</strong>
+      </a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/hijaehyuk">
+        <img src="https://github.com/hijaehyuk.png" width="90" style="border-radius: 50%;"><br/>
+        <strong>이재혁</strong>
+      </a>
+    </td>
+    <td align="center" width="20%">
+      <a href="https://github.com/DongHyunj">
+        <img src="https://github.com/DongHyunj.png" width="90" style="border-radius: 50%;"><br/>
+        <strong>정동현</strong>
+      </a>
+    </td>
+  </tr>
+</table>
 
 ---
 
-## 🚀 실행 방법 (How to Run)
+## 🛠 Tech Stack
 
-1. **프로젝트 클론**
-   ```bash
-   git clone <REPO_URL>
-   cd TalleMalle
-   ```
+### Frontend
 
-2. **환경 변수 파일 생성**
-   - 위 안내에 따라 `backend/.env`, `frontend/.env`, `docker/.env` 세 파일을 작성합니다.
+![Vue.js](https://img.shields.io/badge/vuejs-%2335495e.svg?style=for-the-badge&logo=vuedotjs&logoColor=%234FC08D)
+![Pinia](https://img.shields.io/badge/Pinia-FFD500?style=for-the-badge&logo=pinia&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38bdf8?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![Axios](https://img.shields.io/badge/Axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white)
+![WebSocket](https://img.shields.io/badge/WebSocket-Realtime-00B894?style=for-the-badge)
 
-3. **컨테이너 빌드 및 실행**
-   ```bash
-   cd docker
-   docker compose up -d --build
-   ```
+### 🔹 Backend
+![Spring Boot](https://img.shields.io/badge/SpringBoot-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![Spring Security](https://img.shields.io/badge/SpringSecurity-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
+![JPA](https://img.shields.io/badge/JPA_Hibernate-59666C?style=flat-square)
+![JWT](https://img.shields.io/badge/JWT_Auth-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
+![OAuth2](https://img.shields.io/badge/OAuth2-4285F4?style=flat-square&logo=oauth&logoColor=white)
+![WebSocket](https://img.shields.io/badge/WebSocket_STOMP-00B894?style=flat-square)
 
-4. **상태 확인**
-   ```bash
-   docker compose ps
-   ```
+### 🔹 DBMS & Storage
+![MariaDB](https://img.shields.io/badge/MariaDB-003545?style=flat-square&logo=mariadb&logoColor=white)
+![AWS S3](https://img.shields.io/badge/AWS_S3-FF9900?style=flat-square&logo=amazons3&logoColor=white)
+
+### 🔹 Infra & Deployment
+![AWS EC2](https://img.shields.io/badge/AWS_EC2-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=ubuntu&logoColor=white)
+
+### 🔹 CI/CD
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
+![Jenkins](https://img.shields.io/badge/Jenkins-D24939?style=flat-square&logo=jenkins&logoColor=white)
+
+### 🔹 Collaboration
+![Git](https://img.shields.io/badge/Git-F05032?style=flat-square&logo=git&logoColor=white)
+![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white)
+![Notion](https://img.shields.io/badge/Notion-000000?style=flat-square&logo=notion&logoColor=white)
+---
+
+## 📚 Documents & Wiki
+
+> **프로젝트의 상세한 내용은 아래 Wiki 링크에서 확인하실 수 있습니다.**
+
+* 🎯 [**프로젝트 개요 (Project Overview)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/1.-%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8-%EA%B0%9C%EC%9A%94-(Project-Overview))
+* 🧩 [**기술 선정 이유 (Tech Stack & Rationale)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/2.-%ED%95%B5%EC%8B%AC-%EA%B8%B0%EB%8A%A5-%EC%84%A4%EA%B3%84-%EB%B0%B0%EA%B2%BD%EA%B3%BC-%EA%B8%B0%EC%88%A0-%EB%8F%84%EC%9E%85-%EC%9D%B4%EC%9C%A0)
+* 🏗 [**시스템 아키텍처 (Software Architecture)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/3.-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-(System-Architecture)-%EB%B0%8F-SW-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-(Software-Architecture))
+* ✨ [**코딩 컨벤션 (Coding Convention)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/4.-%EC%BD%94%EB%94%A9-%EC%BB%A8%EB%B2%A4%EC%85%98)
+* 🚀 [**성능 개선 (Performance Improvement)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/5.-%EC%84%B1%EB%8A%A5-%EA%B0%9C%EC%84%A0-(Performance-Improvement)-%F0%9F%9A%80)
+* 🧪 [**프론트엔드 기능 테스트 (Frontend Feature Test)**](https://github.com/beyond-sw-camp/be24-2nd-saraITne-TalleMalle?tab=readme-ov-file#-%EA%B8%B0%EB%8A%A5-%ED%85%8C%EC%8A%A4%ED%8A%B8)
+
+<br></br>
+
+**🖼️ 시스템 아키텍처 (System Architecture)**
+<img src="https://github.com/user-attachments/assets/c84e5df9-2e4f-4f19-ad46-8db0f9a61b08" width="800"/>
+
+<details>
+<summary><b>아키텍처 설명</b></summary>
+
+### 시스템 아키텍처
+- **전체 흐름**: 개발자가 GitHub에 코드를 푸시하면 Webhook으로 Jenkins가 실행되고, 프론트·백엔드를 빌드해 Docker 이미지로 만든 뒤 Docker Hub에 푸시합니다. Kubernetes가 이미지를 Pull해 클러스터에 배포합니다
+- **CI/CD 구성**: GitHub(Webhook) → Jenkins → **프론트(Vue.js) `npm build`**, **백엔드(Spring Boot) `gradle build`** → Docker 이미지 빌드 → **Docker Hub** 업로드 → **Kubernetes** 배포
+
+### Kubernetes 배포·네트워크
+- **Ingress**: 외부 트래픽을 경로별로 분기합니다 (`/` 프론트, `/api` 백엔드 API, `/ws` WebSocket)
+- **배포 전략**: 프론트엔드(Nginx), 백엔드(Spring Boot) 모두 **Blue-Green** 기반 무중단 배포
+- **서비스**: Pod 간 통신은 **ClusterIP** 서비스로 연결합니다
+
+### 데이터·스토리지
+- **DB**: **MariaDB**, **Master–Slave 복제** 구조
+- **객체 스토리지**: Presigned URL 방식으로 **Amazon S3**에 정적 파일·미디어 저장·연동
+
+### 모니터링
+- **Prometheus**: 메트릭 수집  
+- **Grafana**: 대시보드 시각화   
+
+</details>
+</br>
+
+**🖼️ ERD (Entity Relationship Diagram)**
+
+<img src="https://github.com/user-attachments/assets/e165850c-09ce-4e15-9e6a-f05455d937f9" width="800"/>
 
 ---
 
-## ⚠️ 주의 사항
-- `.env` 파일은 민감한 정보를 포함하고 있으므로 **절대로 Git에 커밋하지 마세요.**
-- 서버 배포 시 80(Front), 8080(Back), 3306(DB) 포트가 방화벽에서 열려있는지 확인하세요.
-"# TalleMalle_DevOps" 
+<div align="center">
+  <br>
+  <b>🚕 Backend powered by TalleMalle</b>
+</div>
