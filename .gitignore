@@ -12,3 +12,5 @@ db/*
 Thumbs.db
 
 k8s/backend-configmap.yaml
+k8s/01-db-statefulset.yaml
+k8s/02-db-service.yaml
