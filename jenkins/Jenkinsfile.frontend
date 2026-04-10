@@ -73,7 +73,7 @@ spec:
             }
           }
           echo "변경된 파일:\n${changedFiles.join('\n')}"
-          if (!changedFiles.any { it.startsWith('frontend/') }) {
+          if (!changedFiles.any { it.startsWith('frontend/') || it.startsWith('docker/Dockerfile.frontend') || it.startsWith('jenkins/Jenkinsfile.frontend') }) {
             currentBuild.result = 'ABORTED'
             error('frontend/ 변경 없음 — 빌드 스킵')
           }
@@ -215,7 +215,7 @@ EOF
           sh """
             /kaniko/executor \\
               --context=${WORKSPACE}/frontend \\
-              --dockerfile=${WORKSPACE}/frontend/Dockerfile \\
+              --dockerfile=${WORKSPACE}/docker/Dockerfile.frontend \\
               --destination=${IMAGE_NAME}:${IMAGE_TAG} \\
               --destination=${IMAGE_NAME}:latest \\
               --single-snapshot \\
