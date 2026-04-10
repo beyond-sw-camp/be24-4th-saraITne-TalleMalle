@@ -1,0 +1,165 @@
+---
+- name: Kubernetes Cluster Setup (v1.29)
+  hosts: k8s_cluster
+  become: yes
+  tasks:
+    - name: 호스트 이름 설정
+      hostname:
+        name: "{{ 'master' if inventory_hostname in groups['master'] else 'worker0' + (groups['workers'].index(inventory_hostname) + 1) | string }}"
+
+    - name: swap 비활성화 (실시간)
+      command: swapoff -a
+      when: ansible_swaptotal_mb > 0
+
+    - name: swap 비활성화 (영구적 - fstab)
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: 커널 모듈 로드 설정
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: 커널 모듈 즉시 로드
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: 가상 네트워크 브릿지 설정 (sysctl)
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_file: /etc/sysctl.d/99-k8s-cri.conf
+        state: present
+        reload: yes
+      loop:
+        - { key: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+        - { key: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+        - { key: 'net.ipv4.ip_forward', value: '1' }
+
+    - name: containerd 설치
+      apt:
+        name: containerd
+        state: present
+        update_cache: yes
+
+    - name: GRUB 설정 변경 (cgroup v1 사용)
+      lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX='
+        line: 'GRUB_CMDLINE_LINUX="systemd.unified_cgroup_hierarchy=0"'
+      register: grub_updated
+
+    - name: GRUB 업데이트 및 재부팅 (필요 시)
+      command: update-grub
+      when: grub_updated.changed
+      notify: reboot_server
+
+    - name: 키 보관 디렉토리 생성
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Kubernetes 저장소 GPG 키 등록
+      get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc # .asc 또는 .gpg로 명확히 지정
+        mode: '0644'
+        force: yes
+
+    - name: Kubernetes apt 저장소 추가
+      apt_repository:
+        # 이 부분이 중요합니다. signed-by 경로가 위에서 다운로드한 경로와 정확히 일치해야 합니다.
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /"
+        filename: kubernetes
+        state: present
+        update_cache: yes
+
+    - name: kubeadm, kubelet, kubectl 설치
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - kubeadm
+        - kubelet
+        - kubectl
+
+    - name: kubelet cgroup 드라이버 설정
+      copy:
+        dest: /etc/default/kubelet
+        content: 'KUBELET_EXTRA_ARGS="--cgroup-driver=cgroupfs"'
+
+    - name: containerd 서비스 KillMode 수정
+      lineinfile:
+        path: /usr/lib/systemd/system/containerd.service
+        regexp: '^KillMode='
+        line: 'KillMode=mixed'
+
+    - name: 서비스 재시작
+      systemd:
+        name: "{{ item }}"
+        state: restarted
+        daemon_reload: yes
+      loop:
+        - containerd
+        - kubelet
+
+  handlers:
+    - name: reboot_server
+      reboot:
+
+# 마스터 노드 초기화
+- name: Initialize Master Node
+  hosts: master
+  become: yes
+  tasks:
+    - name: 클러스터 초기화 여부 확인
+      stat:
+        path: /etc/kubernetes/admin.conf
+      register: kube_init
+
+    - name: kubeadm init 실행
+      command: kubeadm init --pod-network-cidr=100.100.100.0/24 --cri-socket=unix:///run/containerd/containerd.sock
+      when: not kube_init.stat.exists
+
+    - name: kubectl 설정 폴더 생성
+      file:
+        path: /root/.kube
+        state: directory
+
+    - name: admin.conf 복사
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: yes
+
+    - name: Calico 네트워크 설치
+      command: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.7/manifests/calico.yaml
+      environment:
+        KUBECONFIG: /root/.kube/config
+
+    - name: Join 명령어 생성 및 저장
+      command: kubeadm token create --print-join-command
+      register: join_command
+
+# 워커 노드 조인
+- name: Join Worker Nodes
+  hosts: workers
+  become: yes
+  tasks:
+    - name: 이미 조인되었는지 확인
+      stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: worker_joined
+
+    - name: 워커 노드 조인 실행
+      command: "{{ hostvars[groups['master'][0]]['join_command'].stdout }}"
+      when: not worker_joined.stat.exists
