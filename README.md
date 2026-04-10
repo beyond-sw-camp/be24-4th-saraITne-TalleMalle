@@ -103,7 +103,7 @@
 * 🏗 [**시스템 아키텍처 (Software Architecture)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/3.-%EC%8B%9C%EC%8A%A4%ED%85%9C-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-(System-Architecture)-%EB%B0%8F-SW-%EC%95%84%ED%82%A4%ED%85%8D%EC%B2%98-(Software-Architecture))
 * ✨ [**코딩 컨벤션 (Coding Convention)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/4.-%EC%BD%94%EB%94%A9-%EC%BB%A8%EB%B2%A4%EC%85%98)
 * 🚀 [**성능 개선 (Performance Improvement)**](https://github.com/beyond-sw-camp/be24-3rd-saraITne-TalleMalle/wiki/5.-%EC%84%B1%EB%8A%A5-%EA%B0%9C%EC%84%A0-(Performance-Improvement)-%F0%9F%9A%80)
-* 🧪 [**프론트엔드 기능 테스트 (Frontend Feature Test)**](https://github.com/beyond-sw-camp/be24-2nd-saraITne-TalleMalle?tab=readme-ov-file#-%EA%B8%B0%EB%8A%A5-%ED%85%8C%EC%8A%A4%ED%8A%B8)
+* 🧪 [**프론트엔드 기능 테스트 (Frontend Feature Test)**](https://github.com/beyond-sw-camp/be24-4th-saraITne-TalleMalle/wiki/6.-%ED%94%84%EB%A1%A0%ED%8A%B8%EC%97%94%EB%93%9C-%EA%B8%B0%EB%8A%A5-%ED%85%8C%EC%8A%A4%ED%8A%B8)
 
 ---
 
